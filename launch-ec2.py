@@ -12,7 +12,7 @@ response = ec2Client.describe_vpcs()
 vpc_id = response.get('Vpcs', [{}])[0].get('VpcId', '')
 
 try:
-    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP_NAME',
+    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP_NAME1',
                                          Description='DESCRIPTION',
                                          VpcId=vpc_id)
     security_group_id = response['GroupId']
@@ -40,7 +40,7 @@ instanceDict = ec2Resource.create_instances(
     ImageId = "ami-0ff8a91507f77f867",
     KeyName = "keypair2nvirginia",
     InstanceType = "t1.micro",
-    SecurityGroupIds = ["sg-bbafdfcd"],
+    SecurityGroupIds = [security_group_id,],
     MinCount = 1,
     MaxCount = 1
 )
