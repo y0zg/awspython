@@ -12,8 +12,8 @@ response = ec2Client.describe_vpcs()
 vpc_id = response.get('Vpcs', [{}])[0].get('VpcId', '')
 
 try:
-    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP_NAME2',
-                                         Description='DESCRIPTION',
+    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP_NAME',
+                                         Description='Ports 80,20',
                                          VpcId=vpc_id)
     security_group_id = response['GroupId']
     print('Security Group Created %s in vpc %s.' % (security_group_id, vpc_id))
@@ -55,13 +55,16 @@ reservations =   ec2Client.describe_instances(
               'Values': ['running']}])["Reservations"]
 
 #snapshot = ec2Client.create_snapshot(VolumeId='volume-id', Description='EBS')
-volume = ec2Client.create_volume(SnapshotId=snapshot.id, volume_size=1)
-ec2Client.Instance('instance-id').attach_volume(VolumeId=volume.id, Device='/dev/sdy')
+#volume = ec2Client.create_volume(SnapshotId=snapshot.id, volume_size=1)
+#ec2Client.Instance('instance-id').attach_volume(VolumeId=volume.id, Device='/dev/sdy')
 #snapshot.delete()
 
 mytags = [{
     "Key" : "Owner", 
-       "Value" : "AlexandrKulbida"
+    "Value" : "AlexandrKulbida",
+    "Key" : "Name",
+    "Value" : "AlexandrKulbida"
+       
     } 
     ]
 for reservation in reservations :
@@ -72,12 +75,17 @@ for reservation in reservations :
             Tags= mytags
            )
 
+#ec2Client.add_tag('Name','instance-id')
+
 #def make_resource_tag(resource , tags_dictionary):
 #   response = resource.create_tags(
 #        Tags = mytags)
 
 #terminate_instances()
 
+response = ec2Client.delete_security_group(
+    GroupId='sg-034681939ce58f6f3'
+)
 
 import http.server
 import cgi
