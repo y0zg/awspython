@@ -1,10 +1,6 @@
-#!/usr/bin/env python3
-
 import boto3
 import http.server
 import socketserver
-import signal
-import time
 
 dryRun = False; # useful variable to put the script into dry run mode where the function allows it
 
@@ -16,7 +12,7 @@ response = ec2Client.describe_vpcs()
 vpc_id = response.get('Vpcs', [{}])[0].get('VpcId', '')
 
 try:
-    response = ec2Client.create_security_group(GroupName='SECURITY_GRoi',
+    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP_NAME',
                                          Description='Ports 80,20',
                                          VpcId=vpc_id)
     security_group_id = response['GroupId']
@@ -87,40 +83,29 @@ for reservation in reservations :
 
 #terminate_instances()
 
-######################
-# delete created SG  #
-######################
-
-#response = ec2Client.delete_security_group(
-#    GroupId='sg-034681939ce58f6f3'
-#)
-
-###############################
-##          HTTP Server       #
-###############################
+response = ec2Client.delete_security_group(
+    GroupId='sg-034681939ce58f6f3'
+)
 
 import http.server
 import cgi
 import base64
 import json
 from urllib.parse import urlparse, parse_qs
-from socketserver import ThreadingMixIn
-import threading 
-#import daemon
-import os
-
+ 
+ 
 class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
     def do_HEAD(self):
         self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.send_header('Content-type', 'application/html')
         self.end_headers()
  
     def do_AUTHHEAD(self):
         self.send_response(401)
         self.send_header(
             'WWW-Authenticate', 'Basic realm="Demo Realm"')
-        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.send_header('Content-type', 'application/html')
         self.end_headers()
  
     def do_GET(self):
@@ -139,10 +124,9 @@ class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
         elif self.headers.get('Authorization') == 'Basic ' + str(key):
             self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'application/html')
             self.end_headers()
-            self.wfile.write('<meta http-equiv="refresh" content=1; URL=http://127.0.0.1:8888" /><pre>'.encode('utf-8'))
-            self.wfile.write(str(os.popen('echo "Last commit details:\n\n" && git show --stat && echo "\n\nFree memory:" && free && echo "\n\nCPU:"&& top -n 1 -b').read()).encode('utf-8')) 
+ 
             getvars = self._parse_GET()
  
             response = {
@@ -152,6 +136,9 @@ class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
             base_path = urlparse(self.path).path
             if base_path == '/path1':
+                # Do some work
+                pass
+            elif base_path == '/path2':
                 # Do some work
                 pass
  
@@ -182,7 +169,7 @@ class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
         elif self.headers.get('Authorization') == 'Basic ' + str(key):
             self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'application/html')
             self.end_headers()
  
             postvars = self._parse_POST()
@@ -196,6 +183,9 @@ class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
             base_path = urlparse(self.path).path
             if base_path == '/path1':
+                # Do some work
+                pass
+            elif base_path == '/path2':
                 # Do some work
                 pass
  
@@ -236,8 +226,6 @@ class CustomServerHandler(http.server.BaseHTTPRequestHandler):
  
         return getvars
  
-#class ThreadedHTTPServer(ThreadingMixIn, CustomHTTPServer):
-#    """Handle requests in a separate thread."""
  
 class CustomHTTPServer(http.server.HTTPServer):
     key = ''
@@ -251,57 +239,56 @@ class CustomHTTPServer(http.server.HTTPServer):
  
     def get_auth_key(self):
         return self.key
-
-    mytags2 = [{
-            "Key" : "Owner",
-            "Value" : "XXX",
-            "Key" : "Name",
-            "Value" : "XXX"
-
-        }
-        ]
-
+ 
  
 if __name__ == '__main__':
-    try:
-        while True:
-            server = CustomHTTPServer(('', 8888))
-#       server = ThreadedHTTPServer(('', 8888))
-            server.set_auth('demo', 'demo')
-            print("starting server, press <Ctrl-C> once to stop server and corresponding AWS resource")
-
-        #response = ec2Client.delete_security_group(
-        #GroupId=security_group_id
-        #)
-
-            server.serve_forever()
-    except KeyboardInterrupt:
-
-            ec2r = boto3.resource('ec2', region_name='us-east-1')
-            all_running_instances = [i for i in ec2r.instances.filter(Filters=[{'Name': 'instance-state-name', 'Values': ['running']}])]
-            for instance in all_running_instances:
-                print("Running instance : %s" % instance.id)
-
-            for instance in all_running_instances:
-                instance.terminate()
-                print("Instance : %s terminated" % instance.id)
-                time.sleep(85);
-                response = ec2Client.delete_security_group(
-                GroupId=security_group_id
-                )
-
-            print("KeyboardInterrupt has been caught.")
-
-
-#    except KeyboardInterrupt:
-#        print('Interrupted')
-#        try:
-#            sys.exit(0)
-#        except SystemExit:
-#            os._exit(0)
+    server = CustomHTTPServer(('', 8888))
+    server.set_auth('demo', 'demo')
+    server.serve_forever()
 
 #######################################3
 #Terminate instances
 #def delete_server(instanceId):
 #    conn.terminate_instances(instance_ids=[instanceId])
 
+
+
+#PORT = 8000
+
+
+#Handler = http.server.SimpleHTTPRequestHandler
+
+#with socketserver.TCPServer(("", PORT), Handler) as httpd:
+#    print("serving at port", PORT)
+#    httpd.serve_forever()
+# Allocate an elastic IP
+#eip = ec2Client.allocate_address(DryRun=dryRun, Domain='vpc')
+# Associate the elastic IP address with the instance launched above
+#ec2Client.associate_address(
+#     DryRun = dryRun,
+#     InstanceId = instanceDict[0].id,
+#     AllocationId = eip["AllocationId"])
+
+#route53Client = boto3.client('route53')
+#Now add the route 53 record set to the hosted zone for the domain
+#route53Client.change_resource_record_sets(
+#    HostedZoneId = 'YOUR_ZONE_ID',
+#    ChangeBatch= {
+#    'Comment': 'Add new instance to Route53',
+#    'Changes': [
+#    {
+#        'Action': 'CREATE',
+#        'ResourceRecordSet': {
+#            'Name': 'YOUR_DNS_ENTRY',
+#            'Type': 'A',
+#            'TTL': 60,
+#            'ResourceRecords': [
+#            {
+#                'Value': eip["PublicIp"]
+#            },
+#            ],
+#        }
+#    },
+#    ]
+#})
+ 
