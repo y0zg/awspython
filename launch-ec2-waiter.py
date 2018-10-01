@@ -1,41 +1,26 @@
 #!/usr/bin/env python3
 
 import boto3
-import boto.ec2
 import http.server
 import socketserver
 import signal
 import time
 
-#AWS_ACCESS_KEY = boto.config.get('Credentials', 'aws_access_key_id')
-#AWS_ACCESS_SECRET_KEY = boto.config.get('Credentials', 'aws_secret_access_key')
-
-
-dryRun = False; # put the script into dry run mode where the function allows it
+dryRun = False; # useful variable to put the script into dry run mode where the function allows it
 
 ec2Client = boto3.client('ec2')
 ec2Resource = boto3.resource('ec2')
-conn = boto.ec2.connect_to_region("us-east-1")
-
-#Create EBS volume
-vol = conn.create_volume(1, "us-east-1d") #default standard = magnetic
-print ('Volume Id: ', vol.id)
-print (vol.__dict__)
-conn.create_tags([vol.id], {"Name":"AlexandrKulbida"})
-time.sleep(30) #to be replaced with waiter
 
 #Security group
 response = ec2Client.describe_vpcs()
 vpc_id = response.get('Vpcs', [{}])[0].get('VpcId', '')
 
 try:
-    response = ec2Client.create_security_group(GroupName='SECURITY_GROUP',
+    response = ec2Client.create_security_group(GroupName='SECURITY_GR',
                                          Description='Ports 80,20',
                                          VpcId=vpc_id)
-
     security_group_id = response['GroupId']
     print('Security Group Created %s in vpc %s.' % (security_group_id, vpc_id))
-
 
     data = ec2Client.authorize_security_group_ingress(
         GroupId=security_group_id,
@@ -56,43 +41,27 @@ except ClientError as e:
 # Create the instance
 instanceDict = ec2Resource.create_instances(
     DryRun = dryRun,
+# ???    Name = "Test",
     ImageId = "ami-0ff8a91507f77f867",
     KeyName = "keypair2nvirginia",
     InstanceType = "t1.micro",
 #    BlockDeviceMappings=[{"DeviceName": "/dev/xvda", "Ebs": {"VolumeSize": 1}}],
     SecurityGroupIds = [security_group_id],
+
     MinCount = 1,
     MaxCount = 1
 )
 # Wait for it to launch before assigning the elastic IP address
 instanceDict[0].wait_until_running();
 
-
-#attach EBS
-#result = ec2Client.attach_volume(VolumeId=vol.id,InstanceId=ec2.Instance.id,Device='/dev/sdw')
-
-#: ec2.Instance(id='i-0a97f1aa2abcf08e8')
-
 reservations =   ec2Client.describe_instances(
     Filters=[{'Name': 'instance-state-name', 
               'Values': ['running']}])["Reservations"]
 
-#instance1 = reservations.instanceDict[0]
-#print(instance1)
-
-#create EBS volume
-
-#myCode = """#!/bin/bash
-#sudo mkfs.ext4 /dev/xvdf
-#sudo mkdir /vol
-#echo "/dev/xvdf /vol auto noatime 0 0" | sudo tee -a /etc/fstab"""
-
-
-
-#result = ec2Client.attach_volume(VolumeId=vol.id,InstanceId=,Device='/dev/sdw')
-
-
-
+#snapshot = ec2Client.create_snapshot(VolumeId='volume-id', Description='EBS')
+#volume = ec2Client.create_volume(SnapshotId=snapshot.id, volume_size=1)
+#ec2Client.Instance('instance-id').attach_volume(VolumeId=volume.id, Device='/dev/sdy')
+#snapshot.delete()
 
 mytags = [{
     "Key" : "Owner", 
@@ -105,19 +74,30 @@ mytags = [{
 for reservation in reservations :
     for each_instance in reservation["Instances"]:
         ec2Client.create_tags(
+#             Resources = [instanceDict],
             Resources = [each_instance["InstanceId"] ],
             Tags= mytags
            )
 
+#ec2Client.add_tag('Name','instance-id')
+
+#def make_resource_tag(resource , tags_dictionary):
+#   response = resource.create_tags(
+#        Tags = mytags)
 
 #terminate_instances()
 
+######################
+# delete created SG  #
+######################
+
+#response = ec2Client.delete_security_group(
+#    GroupId='sg-034681939ce58f6f3'
+#)
 
 ###############################
 ##          HTTP Server       #
 ###############################
-
-#Sorry for bad modularity of the code :)
 
 import http.server
 import cgi
@@ -272,6 +252,16 @@ class CustomHTTPServer(http.server.HTTPServer):
     def get_auth_key(self):
         return self.key
 
+    mytags2 = [{
+            "Key" : "Owner",
+            "Value" : "XXX",
+            "Key" : "Name",
+            "Value" : "XXX"
+
+        }
+        ]
+
+ 
 if __name__ == '__main__':
     try:
         while True:
@@ -295,10 +285,9 @@ if __name__ == '__main__':
             for instance in all_running_instances:
                 instance.terminate()
                 print("Instance : %s terminated" % instance.id)
-                time.sleep(15)
+
                 waiter = ec2Client.get_waiter('instance_terminated')
                 waiter.wait(InstanceIds=[instance.id])
-                time.sleep(30)
                 response = ec2Client.delete_security_group(
                 GroupId=security_group_id
                 )
@@ -316,5 +305,5 @@ if __name__ == '__main__':
 #######################################3
 #Terminate instances
 #def delete_server(instanceId):
-#    ec2Client.terminate_instances(instance_ids=[instanceId])
+#    conn.terminate_instances(instance_ids=[instanceId])
 
